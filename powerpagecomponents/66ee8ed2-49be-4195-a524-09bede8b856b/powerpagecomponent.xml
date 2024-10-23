@@ -1,5 +1,11 @@
 <powerpagecomponent powerpagecomponentid="66ee8ed2-49be-4195-a524-09bede8b856b">
-  <content>{"display_name":"Site name","type":756150000,"value":"Company name\r\n"}</content>
+  <content>{
+  "filecontent": null,
+  "display_name": "Site name",
+  "type": 756150000,
+  "value": "Tej Teech world",
+  "copy": "undefined"
+}</content>
   <iscustomizable>1</iscustomizable>
   <name>Site name</name>
   <powerpagecomponenttype>7</powerpagecomponenttype>

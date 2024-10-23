@@ -1,0 +1,81 @@
+pipeline {
+    agent any
+    environment {
+        GIT_CREDENTIALS = credentials('GITHUB') // GitHub credentials stored in Jenkins
+        TARGET_APP_ID = credentials('TARGET_APP_ID')
+        TARGET_CLIENT_SECRET = credentials('TARGET_CLIENT_SECRET')
+        TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')
+        TARGET_ENV_URL = credentials('TARGET_ENV_URL')
+        SOLUTION_NAME = 'Dev'
+        REPO_DIR = 'C:\\solutions\\repo'  // Directory where the repo will be cloned
+        ZIP_PATH = 'C:\\solutions\\repo\\${SOLUTION_NAME}.zip'  // Path to save the zip file
+        GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/PowerOps-Open.git"
+        PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
+    }
+    
+    stages {
+        stage('Checkout Code from GitHub') {
+            steps {
+                dir(REPO_DIR) {
+                    // Clone the repo from GitHub
+                    git url: GIT_URL, branch: 'main'  // Adjust branch if necessary
+                }
+            }
+        }
+        
+        stage('Zip the Code') {
+            steps {
+                dir(REPO_DIR) {
+                    bat """
+                    powershell -Command "Compress-Archive -Path . -DestinationPath ${ZIP_PATH} -Force"
+                    """
+                }
+            }
+        }
+        
+        stage('Authenticate Target Environment') {
+            steps {
+                bat """
+                pac auth create --applicationId ${TARGET_APP_ID} --clientSecret ${TARGET_CLIENT_SECRET} --tenant ${TARGET_TENANT_ID}
+                """
+            }
+        }
+        
+        stage('Select Target Environment') {
+            steps {
+                bat """
+                pac org select --environment https://${TARGET_ENV_URL}
+                """
+            }
+        }
+        
+        stage('Deploy Solution') {
+            steps {
+                bat """
+                pac solution import --path ${ZIP_PATH}
+                """
+            }
+        }
+
+        stage('Publish Solution') {
+            steps {
+                bat """
+                pac solution publish
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment successful!'
+            // Clean up the local repo directory after successful deployment
+            bat """
+            powershell -Command "Remove-Item -Recurse -Force ${REPO_DIR}"
+            """
+        }
+        failure {
+            echo 'Deployment failed. Check logs for details.'
+        }
+    }
+}

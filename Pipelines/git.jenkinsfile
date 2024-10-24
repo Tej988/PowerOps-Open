@@ -1,0 +1,98 @@
+pipeline {
+    agent any
+    environment {
+        
+    }
+    stages {
+        stage('Set Git Username and Email') {
+            steps {
+                bat """
+                git config --global user.email "tejtechworld@gmail.com"
+                git config --global user.name "Tej988"
+                """
+            }
+        }
+
+        stage('Mark Directory as Safe for Git') {
+            steps {
+                bat """
+                git config --global --add safe.directory D:/Test/export/unzipcontent
+                """
+            }
+        }
+
+        stage('Ensure Git Remote and Checkout Branch') {
+            steps {
+                dir("${EXPORT_PATH}\\unzipcontent") {
+                    script {
+                        // Check if remote 'origin' exists
+                        def remoteExists = bat(script: "git remote", returnStdout: true).trim().contains("origin")
+                        
+                        if (!remoteExists) {
+                            echo "Remote 'origin' does not exist. Adding remote."
+                            bat """
+                            git remote add origin ${GIT_URL}
+                            """
+                        } else {
+                            echo "Remote 'origin' already exists."
+                        }
+
+                        // Fetch latest changes and checkout branch
+                        bat """
+                        git fetch origin
+                        git checkout -B ${BRANCH_NAME}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Push Unzipped Solution to GitHub') {
+            steps {
+                dir("${EXPORT_PATH}\\unzipcontent") {
+                    script {
+                        // Pull latest changes from the branch
+                        bat """
+                        git pull origin ${BRANCH_NAME} --rebase
+                        """
+
+                        // Check for local changes
+                        def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
+                        if (changes) {
+                            // If there are changes, add, commit, and push
+                            bat """
+                            git add .
+                            git commit -m "Exported solution: ${SOLUTION_NAME}"
+                            git push -u origin ${BRANCH_NAME}
+                            """
+                        } else {
+                            echo "No changes to commit."
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Clean Export Directory') {
+            steps {
+                script {
+                    def solutionZipPath = "${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip"
+                    def unzippedSolutionPath = "${EXPORT_PATH}\\unzipcontent"
+
+                    bat """
+                    if exist "${solutionZipPath}" (
+                        del /F /Q "${solutionZipPath}"
+                    )
+                    """
+                    bat """
+                    if exist "${unzippedSolutionPath}" (
+                        rmdir /S /Q "${unzippedSolutionPath}"
+                    )
+                    """
+
+                    echo "Cleaned up solution files, leaving .git and other necessary files intact."
+                }
+            }
+        }
+    }
+}

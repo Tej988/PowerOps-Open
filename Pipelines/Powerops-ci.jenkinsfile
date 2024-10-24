@@ -64,6 +64,10 @@ pipeline {
                         } else {
                             echo "Git repository already initialized."
                         }
+                        bat """
+                        git fetch origin
+                        git checkout -B ${BRANCH_NAME}
+                        """
                     }
                 }
             }

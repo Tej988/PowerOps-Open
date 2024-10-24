@@ -49,7 +49,7 @@ pipeline {
         }
         stage('Initialize Git and Add Remote') {
             steps {
-                dir("${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}") {
+                dir("${EXPORT_PATH}\\solutions") {
                     script {
                         // Check if the .git directory exists
                         def isGitRepo = fileExists('.git')
@@ -75,7 +75,7 @@ pipeline {
    
         stage('Push Unzipped Solution to GitHub') {
             steps {
-                dir("${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}") {
+                dir("${EXPORT_PATH}\\solutions") {
                     script {
                         // Fetch and rebase the latest changes from the remote branch
                         bat """
@@ -124,7 +124,7 @@ pipeline {
                 script {
                     // Define the paths to clean
                     def solutionZipPath = "${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip"
-                    def unzippedSolutionPath = "${EXPORT_PATH}\\${SOLUTION_NAME}"
+                    def unzippedSolutionPath = "${EXPORT_PATH}\\solutuions"
 
                     // Remove the exported solution ZIP file if it exists
                     bat """

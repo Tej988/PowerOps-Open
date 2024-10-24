@@ -1,81 +1,124 @@
 pipeline {
     agent any
     environment {
-        GIT_CREDENTIALS = credentials('GITHUB') // GitHub credentials stored in Jenkins
-        TARGET_APP_ID = credentials('TARGET_APP_ID')
-        TARGET_CLIENT_SECRET = credentials('TARGET_CLIENT_SECRET')
-        TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')
-        TARGET_ENV_URL = credentials('TARGET_ENV_URL')
-        SOLUTION_NAME = 'Dev'
-        REPO_DIR = 'C:\\solutions\\repo'  // Directory where the repo will be cloned
-        ZIP_PATH = 'C:\\solutions\\repo\\${SOLUTION_NAME}.zip'  // Path to save the zip file
+        // Load credentials from Jenkins Credential Store
+        SOURCE_APP_ID = credentials('SOURCE_APP_ID')
+        SOURCE_CLIENT_SECRET = credentials('SOURCE_CLIENT_SECRET')
+        SOURCE_TENANT_ID = credentials('SOURCE_TENANT_ID')
+        SOLUTION_NAME = credentials('SOLUTION_NAME')
+        EXPORT_PATH = 'C:\\solutions\\exported' 
+        SOURCE_ENV_URL = credentials('SOURCE_ENV_URL')
+        GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/PowerOps-Open.git"
         PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
+        
     }
-    
     stages {
-        stage('Checkout Code from GitHub') {
+        stage('Approval') {
             steps {
-                dir(REPO_DIR) {
-                    // Clone the repo from GitHub
-                    git url: GIT_URL, branch: 'main'  // Adjust branch if necessary
+                script {
+                    input message: 'Approve the exported solution?', ok: 'Approve', submitter: 'admin'
                 }
             }
         }
-        
-        stage('Zip the Code') {
+        stage('Authenticate Source Environment') {
             steps {
-                dir(REPO_DIR) {
-                    bat """
-                    powershell -Command "Compress-Archive -Path . -DestinationPath ${ZIP_PATH} -Force"
-                    """
+                bat """
+                pac auth create --applicationId %SOURCE_APP_ID% --clientSecret %SOURCE_CLIENT_SECRET% --tenant %SOURCE_TENANT_ID%
+                """
+            }
+        }
+        stage('Select Source Environment') {
+            steps {
+                bat """
+                pac org select --environment https://%SOURCE_ENV_URL%
+                """
+            }
+        }
+        stage('Export Solution') {
+            steps {
+                bat """
+                pac solution export --name ${SOLUTION_NAME} --path ${EXPORT_PATH} --managed --overwrite
+                """
+            }
+        }
+        stage('Unzip Exported Solution') {
+            steps {
+                bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\unzipped_solution' -Force\""
+            }
+        }
+        
+        stage('Configure Git User') {
+            steps {
+                bat """
+                git config --global user.email "tejtechworld@gmail.com"
+                git config --global user.name "Tej988"
+                """
+            }
+        }
+        
+        stage('Initialize Git and Add Remote') {
+            steps {
+                dir("${EXPORT_PATH}\\unzipped_solution") {
+                    script {
+                        // Check if the .git directory exists
+                        def isGitRepo = fileExists('.git')
+                        
+                        // Initialize Git and add remote only if it's not a Git repo
+                        if (!isGitRepo) {
+                            bat """
+                            git init
+                            git remote add origin %GIT_URL%
+                            """
+                            echo "Initialized Git and added remote origin."
+                        } else {
+                            echo "Git repository already initialized."
+                        }
+                    }
                 }
             }
         }
-        
-        stage('Authenticate Target Environment') {
+        // stage('Pull Latest Changes from GitHub') {
+        //     steps {
+        //         dir("${EXPORT_PATH}\\unzipped_solution") {
+        //             bat """
+        //             git fetch origin
+        //             git pull origin feature-solution
+        //             """
+        //         }
+        //     }
+        // }
+        stage('Push Unzipped Solution to GitHub') {
             steps {
-                bat """
-                pac auth create --applicationId ${TARGET_APP_ID} --clientSecret ${TARGET_CLIENT_SECRET} --tenant ${TARGET_TENANT_ID}
-                """
+                dir("${EXPORT_PATH}\\unzipped_solution") {
+                    script {
+                        // Check if the branch exists and switch to it
+                        bat """
+                        git fetch origin
+                        git checkout feature-solution || git checkout -b feature-solution
+                        git pull origin feature-solution
+                        """
+                        
+                        // Check for changes
+                        def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
+                        if (changes) {
+                            // If there are changes, add, commit, and push
+                            bat """
+                            git add .
+                            git commit -m "Exported solution"
+                            git push -u origin feature-solution
+                            """
+                        } else {
+                            echo "No changes to commit."
+                        }
+                    }
+                }
             }
         }
-        
-        stage('Select Target Environment') {
-            steps {
-                bat """
-                pac org select --environment https://${TARGET_ENV_URL}
-                """
-            }
-        }
-        
-        stage('Deploy Solution') {
-            steps {
-                bat """
-                pac solution import --path ${ZIP_PATH}
-                """
-            }
-        }
-
-        stage('Publish Solution') {
-            steps {
-                bat """
-                pac solution publish
-                """
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Deployment successful!'
-            // Clean up the local repo directory after successful deployment
-            bat """
-            powershell -Command "Remove-Item -Recurse -Force ${REPO_DIR}"
-            """
-        }
-        failure {
-            echo 'Deployment failed. Check logs for details.'
-        }
+        // stage('Clean Export Directory') {
+        //     steps {
+        //         bat "powershell -Command \"Get-ChildItem -Path '${EXPORT_PATH}' -Exclude '.git' | Remove-Item -Recurse -Force\""
+        //     }
+        // }
     }
 }

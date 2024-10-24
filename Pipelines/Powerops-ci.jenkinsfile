@@ -73,12 +73,16 @@ pipeline {
             }
         }
    
-
         stage('Push Unzipped Solution to GitHub') {
             steps {
                 dir("${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}") {
                     script {
-                        // Check for changes
+                        // Fetch and rebase the latest changes from the remote branch
+                        bat """
+                        git pull origin ${BRANCH_NAME} --rebase
+                        """
+                        
+                        // Check for local changes
                         def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
                         if (changes) {
                             // If there are changes, add, commit, and push
@@ -94,6 +98,27 @@ pipeline {
                 }
             }
         }
+
+        // stage('Push Unzipped Solution to GitHub') {
+        //     steps {
+        //         dir("${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}") {
+        //             script {
+        //                 // Check for changes
+        //                 def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
+        //                 if (changes) {
+        //                     // If there are changes, add, commit, and push
+        //                     bat """
+        //                     git add .
+        //                     git commit -m "Exported solution: ${SOLUTION_NAME}"
+        //                     git push -u origin ${BRANCH_NAME}
+        //                     """
+        //                 } else {
+        //                     echo "No changes to commit."
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
         stage('Clean Export Directory') {
             steps {
                 script {

@@ -11,7 +11,6 @@ pipeline {
         GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/PowerOps-Open.git"
         PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
-        
     }
     stages {
         stage('Approval') {
@@ -47,16 +46,6 @@ pipeline {
                 bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\unzipped_solution' -Force\""
             }
         }
-        
-        // stage('Configure Git User') {
-        //     steps {
-        //         bat """
-        //         git config --global user.email "tejtechworld@gmail.com"
-        //         git config --global user.name "Tej988"
-        //         """
-        //     }
-        // }
-        
         stage('Initialize Git and Add Remote') {
             steps {
                 dir("${EXPORT_PATH}\\unzipped_solution") {
@@ -78,25 +67,44 @@ pipeline {
                 }
             }
         }
-       
+        stage('Check if Solution Folder Exists in Repo') {
+            steps {
+                dir("${EXPORT_PATH}\\unzipped_solution") {
+                    script {
+                        // Fetch the branch to make sure we are up-to-date
+                        bat "git fetch origin"
+                        
+                        // Check if the solution folder exists in the remote repository
+                        def folderExists = bat(script: "git ls-tree --name-only origin/feature-solution | findstr /i \"${SOLUTION_NAME}\"", returnStatus: true)
+
+                        if (folderExists == 0) {
+                            // If folder exists, pull changes
+                            bat """
+                            git checkout feature-solution
+                            git pull origin feature-solution
+                            """
+                            echo "Solution folder exists in the repository. Pulling latest changes."
+                        } else {
+                            // If folder doesn't exist, create a new folder for the solution
+                            bat "mkdir ${SOLUTION_NAME}"
+                            bat "git add ${SOLUTION_NAME}"
+                            echo "Solution folder does not exist. Creating a new folder for the solution."
+                        }
+                    }
+                }
+            }
+        }
         stage('Push Unzipped Solution to GitHub') {
             steps {
                 dir("${EXPORT_PATH}\\unzipped_solution") {
                     script {
-                        // Check if the branch exists and switch to it
-                        bat """
-                        git fetch origin
-                        git checkout feature-solution || git checkout -b feature-solution
-                        git pull origin feature-solution
-                        """
-                        
                         // Check for changes
                         def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
                         if (changes) {
                             // If there are changes, add, commit, and push
                             bat """
                             git add .
-                            git commit -m "Exported solution"
+                            git commit -m "Exported solution: ${SOLUTION_NAME}"
                             git push -u origin feature-solution
                             """
                         } else {
@@ -107,9 +115,30 @@ pipeline {
             }
         }
         stage('Clean Export Directory') {
-            steps {
-                bat "powershell -Command \"Get-ChildItem -Path '${EXPORT_PATH}' -Exclude '.git' | Remove-Item -Recurse -Force\""
+        steps {
+            script {
+                // Define the paths to clean
+                def solutionZipPath = "${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip"
+                def unzippedSolutionPath = "${EXPORT_PATH}\\unzipped_solution"
+
+                // Remove the exported solution ZIP file if it exists
+                bat """
+                if exist "${solutionZipPath}" (
+                    del /F /Q "${solutionZipPath}"
+                )
+                """
+
+                // Remove the unzipped solution folder if it exists, but keep .git
+                bat """
+                if exist "${unzippedSolutionPath}" (
+                    rmdir /S /Q "${unzippedSolutionPath}"
+                )
+                """
+
+                echo "Cleaned up solution files, leaving .git and other necessary files intact."
             }
         }
+}
+
     }
 }

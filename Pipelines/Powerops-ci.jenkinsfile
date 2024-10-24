@@ -8,6 +8,7 @@ pipeline {
         SOLUTION_NAME = credentials('SOLUTION_NAME')
         EXPORT_PATH = 'C:\\solutions\\exported' 
         SOURCE_ENV_URL = credentials('SOURCE_ENV_URL')
+        BRANCH_NAME = 'feature_tej'
         GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/PowerOps-Open.git"
         PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
@@ -75,13 +76,13 @@ pipeline {
                         bat "git fetch origin"
                         
                         // Check if the solution folder exists in the remote repository
-                        def folderExists = bat(script: "git ls-tree --name-only origin/feature-solution | findstr /i \"${SOLUTION_NAME}\"", returnStatus: true)
+                        def folderExists = bat(script: "git ls-tree --name-only origin/${BRANCH_NAME} | findstr /i \"${SOLUTION_NAME}\"", returnStatus: true)
 
                         if (folderExists == 0) {
                             // If folder exists, pull changes
                             bat """
-                            git checkout feature-solution
-                            git pull origin feature-solution
+                            git checkout ${BRANCH_NAME}
+                            git pull origin ${BRANCH_NAME}
                             """
                             echo "Solution folder exists in the repository. Pulling latest changes."
                         } else {
@@ -105,7 +106,7 @@ pipeline {
                             bat """
                             git add .
                             git commit -m "Exported solution: ${SOLUTION_NAME}"
-                            git push -u origin feature-solution
+                            git push -u origin ${BRANCH_NAME}
                             """
                         } else {
                             echo "No changes to commit."

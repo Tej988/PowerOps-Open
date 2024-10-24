@@ -68,13 +68,26 @@ pipeline {
                 }
             }
         }
-        stage('Check if Solution Folder Exists in Repo') {
-            steps {
-                dir("${EXPORT_PATH}\\unzipped_solution") {
-                    script {
-                        // Fetch the branch to make sure we are up-to-date
-                        bat "git fetch origin"
+      stage('Check if Solution Folder Exists in Repo') {
+        steps {
+            dir("${EXPORT_PATH}\\unzipped_solution") {
+                script {
+                    // Fetch the branch to make sure we are up-to-date
+                    bat "git fetch origin"
 
+                    // Check if the repository is empty
+                    def repoStatus = bat(script: "git rev-parse --is-inside-work-tree", returnStatus: true)
+
+                    if (repoStatus != 0) {
+                        // Initialize the repository if it's completely empty
+                        bat """
+                        git checkout -b ${BRANCH_NAME}
+                        git add .
+                        git commit -m "Initial commit with ${SOLUTION_NAME}."
+                        git push -u origin ${BRANCH_NAME}
+                        """
+                        echo "Repository is empty. Added solution folder and pushed to remote."
+                    } else {
                         // Create the branch locally if it doesn't exist
                         def branchExists = bat(script: "git branch --list ${BRANCH_NAME}", returnStatus: true)
                         
@@ -92,7 +105,7 @@ pipeline {
                             echo "Checked out branch ${BRANCH_NAME}."
                         }
 
-                        // Check if the solution folder exists in the remote repository
+                        // Check if the solution folder exists in the repository
                         def folderExists = bat(script: "git ls-tree --name-only origin/${BRANCH_NAME} | findstr /i \"${SOLUTION_NAME}\"", returnStatus: true)
 
                         if (folderExists == 0) {
@@ -111,6 +124,8 @@ pipeline {
                 }
             }
         }
+    }
+
         stage('Push Unzipped Solution to GitHub') {
             steps {
                 dir("${EXPORT_PATH}\\unzipped_solution") {

@@ -2,12 +2,12 @@ pipeline {
     agent any
     environment {
         // Load credentials from Jenkins Credential Store
-        // SOURCE_APP_ID = credentials('SOURCE_APP_ID')
-        // SOURCE_CLIENT_SECRET = credentials('SOURCE_CLIENT_SECRET')
-        // SOURCE_TENANT_ID = credentials('SOURCE_TENANT_ID')
-        // SOLUTION_NAME = credentials('SOLUTION_NAME')
+        SOURCE_APP_ID = credentials('SOURCE_APP_ID')
+        SOURCE_CLIENT_SECRET = credentials('SOURCE_CLIENT_SECRET')
+        SOURCE_TENANT_ID = credentials('SOURCE_TENANT_ID')
+        SOLUTION_NAME = credentials('SOLUTION_NAME')
         EXPORT_PATH = 'C:\\solutions\\exported' 
-        // SOURCE_ENV_URL = credentials('SOURCE_ENV_URL')
+        SOURCE_ENV_URL = credentials('SOURCE_ENV_URL')
         GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/PowerOps-Open.git"
         PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"

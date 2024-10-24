@@ -44,12 +44,12 @@ pipeline {
         }
         stage('Unzip Exported Solution') {
             steps {
-                bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\unzipped_solution' -Force\""
+                bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}' -Force\""
             }
         }
         stage('Initialize Git and Add Remote') {
             steps {
-                dir("${EXPORT_PATH}\\unzipped_solution") {
+                dir("${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}") {
                     script {
                         // Check if the .git directory exists
                         def isGitRepo = fileExists('.git')
@@ -68,67 +68,11 @@ pipeline {
                 }
             }
         }
-      stage('Check if Solution Folder Exists in Repo') {
-        steps {
-            dir("${EXPORT_PATH}\\unzipped_solution") {
-                script {
-                    // Fetch the branch to make sure we are up-to-date
-                    bat "git fetch origin"
-
-                    // Check if the repository is empty
-                    def repoStatus = bat(script: "git rev-parse --is-inside-work-tree", returnStatus: true)
-
-                    if (repoStatus != 0) {
-                        // Initialize the repository if it's completely empty
-                        bat """
-                        git checkout -b ${BRANCH_NAME}
-                        git add .
-                        git commit -m "Initial commit with ${SOLUTION_NAME}."
-                        git push -u origin ${BRANCH_NAME}
-                        """
-                        echo "Repository is empty. Added solution folder and pushed to remote."
-                    } else {
-                        // Create the branch locally if it doesn't exist
-                        def branchExists = bat(script: "git branch --list ${BRANCH_NAME}", returnStatus: true)
-                        
-                        if (branchExists != 0) {
-                            // Branch does not exist, create it
-                            bat """
-                            git checkout -b ${BRANCH_NAME}
-                            """
-                            echo "Branch ${BRANCH_NAME} created."
-                        } else {
-                            // Branch exists, just checkout
-                            bat """
-                            git checkout ${BRANCH_NAME}
-                            """
-                            echo "Checked out branch ${BRANCH_NAME}."
-                        }
-
-                        // Check if the solution folder exists in the repository
-                        def folderExists = bat(script: "git ls-tree --name-only origin/${BRANCH_NAME} | findstr /i \"${SOLUTION_NAME}\"", returnStatus: true)
-
-                        if (folderExists == 0) {
-                            // If folder exists, pull changes
-                            bat """
-                            git pull origin ${BRANCH_NAME}
-                            """
-                            echo "Solution folder exists in the repository. Pulling latest changes."
-                        } else {
-                            // If folder doesn't exist, create a new folder for the solution
-                            bat "mkdir ${SOLUTION_NAME}"
-                            bat "git add ${SOLUTION_NAME}"
-                            echo "Solution folder does not exist. Creating a new folder for the solution."
-                        }
-                    }
-                }
-            }
-        }
-    }
+   
 
         stage('Push Unzipped Solution to GitHub') {
             steps {
-                dir("${EXPORT_PATH}\\unzipped_solution") {
+                dir("${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}") {
                     script {
                         // Check for changes
                         def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
@@ -151,7 +95,7 @@ pipeline {
                 script {
                     // Define the paths to clean
                     def solutionZipPath = "${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip"
-                    def unzippedSolutionPath = "${EXPORT_PATH}\\unzipped_solution"
+                    def unzippedSolutionPath = "${EXPORT_PATH}\\${SOLUTION_NAME}"
 
                     // Remove the exported solution ZIP file if it exists
                     bat """

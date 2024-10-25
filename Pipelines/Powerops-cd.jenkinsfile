@@ -1,71 +1,90 @@
 pipeline {
     agent any
     environment {
-        TARGET_APP_ID = credentials('TARGET_APP_ID')
-        TARGET_CLIENT_SECRET = credentials('TARGET_CLIENT_SECRET')
-        TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')
-        TARGET_ENV_URL = credentials('TARGET_ENV_URL')
+        // Define variables
+        EXPORT_DIRECTORY = 'C:\\CD\\Export'
+        GIT_REPO_URL = 'https://github.com/Tej988/powerops2.git'  
         SOLUTION_NAME = credentials('SOLUTION_NAME')
-        EXPORT_PATH = 'C:\\solutions\\CD'
-        ZIP_PATH = 'C:\\solutions\\zipped'
-        GIT_CREDENTIALS = credentials('GITHUB')
-        GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/powerops2.git"
-        PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
+        CLONE_PATH = "${EXPORT_DIRECTORY}\\solutions"
+        ZIP_PATH = "${EXPORT_DIRECTORY}\\${SOLUTION_NAME}.zip"
+        SOURCE_FOLDER = "${CLONE_PATH}\\${SOLUTION_NAME}"
+        TARGET_APP_ID = credentials('TARGET_APP_ID')         // Load from Jenkins credentials
+        TARGET_CLIENT_SECRET = credentials('TARGET_CLIENT_SECRET') // Load from Jenkins credentials
+        TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')   // Load from Jenkins credentials
+        TARGET_ENV_URL = credentials('TARGET_ENV_URL')       // Load from Jenkins credentials
+        
     }
     stages {
-        stage('Prepare and Clone Repository') {
+        stage('Prepare Environment') {
             steps {
                 script {
-                    // Check if EXPORT_PATH exists, if not, create it
-                    if (!fileExists("${EXPORT_PATH}")) {
-                        bat "mkdir ${EXPORT_PATH}"
-                        echo "Directory ${EXPORT_PATH} created."
-                    } else {
-                        echo "Directory ${EXPORT_PATH} already exists."
+                    // Step 1: Clear the export directory if it exists
+                    if (fileExists(EXPORT_DIRECTORY)) {
+                        bat "powershell -Command \"Remove-Item -Path '${EXPORT_DIRECTORY}\\*' -Recurse -Force\""
+                        echo "Cleared previous contents in the export directory: ${EXPORT_DIRECTORY}"
                     }
+
+                    // Step 2: Create the export directory
+                    bat "powershell -Command \"New-Item -ItemType Directory -Path '${EXPORT_DIRECTORY}' -Force\""
+                    echo "Export directory created at: ${EXPORT_DIRECTORY}"
                 }
-                dir("${EXPORT_PATH}") {
-                    script {
-                        if (fileExists('.git')) {
-                            // If the directory is already a Git repo, pull the latest changes
-                            bat 'git reset --hard'
-                            bat 'git pull'
-                        } else {
-                            // If the directory is not a Git repo, delete contents and clone
-                            bat 'del /q /s * >nul 2>&1'
-                            bat "git clone ${GIT_URL} ."
-                        }
+            }
+        }
+        stage('Clone Git Repository') {
+            steps {
+                script {
+                    // Step 3: Clone the Git repository
+                    if (!fileExists(CLONE_PATH)) {
+                        bat "git clone ${GIT_REPO_URL} ${CLONE_PATH}"
+                        echo "Repository cloned to: ${CLONE_PATH}"
+                    } else {
+                        echo "Repository already cloned at: ${CLONE_PATH}"
                     }
                 }
             }
         }
-        
-        stage('Zip Solution') {
+        stage('Zip Dev Folder') {
             steps {
                 script {
-                    def solutionFolderPath = "${EXPORT_PATH}\\${SOLUTION_NAME}"
-                    def zipFilePath = "${ZIP_PATH}\\${SOLUTION_NAME}_managed.zip"
-                    
-                    // Verify if the solution folder exists and zip it
-                    bat """
-                    if not exist "${solutionFolderPath}" (
-                        echo Solution folder not found: ${solutionFolderPath}
-                        exit 1
-                    ) else (
-                        powershell -Command "Compress-Archive -Path '${solutionFolderPath}\\*' -DestinationPath '${zipFilePath}' -Force"
-                    )
-                    """
+                    // Step 4: Create a zip file from the 'Dev' folder
+                    if (fileExists(SOURCE_FOLDER)) {
+                        bat "powershell -Command \"Compress-Archive -Path '${SOURCE_FOLDER}\\*' -DestinationPath '${ZIP_PATH}' -Force\""
+                        echo "Zipped 'Dev' folder to: ${ZIP_PATH}"
+                    } else {
+                        echo "'Dev' folder not found in: ${CLONE_PATH}"
+                    }
                 }
+            }
+        }
+        stage('Authenticate Target Environment') {
+            steps {
+                bat """
+                pac auth create --applicationId %TARGET_APP_ID% --clientSecret %TARGET_CLIENT_SECRET% --tenant %TARGET_TENANT_ID%
+                """
+            }
+        }
+        stage('Select Target Environment') {
+            steps {
+                bat """
+                pac org select --environment https://%TARGET_ENV_URL%
+                """
+            }
+        }
+        stage('Import Solution') {
+            steps {
+                bat """
+                pac solution import --path ${ZIP_PATH} --async --overwrite
+                """
             }
         }
     }
     post {
         always {
-            bat """
-            powershell -Command "Remove-Item -Path '${EXPORT_PATH}\\${SOLUTION_NAME}' -Recurse -Force"
-            powershell -Command "Remove-Item -Path '${ZIP_PATH}\\${SOLUTION_NAME}_managed.zip' -Force"
-            """
-            echo "Cleaned up export and zip directories after deployment."
+            script {
+                // Clean up: Optional, but you can remove the export directory after use
+                bat "powershell -Command \"Remove-Item -Path '${EXPORT_DIRECTORY}' -Recurse -Force\""
+                echo "Pipeline completed."
+            }
         }
     }
 }

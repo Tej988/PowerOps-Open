@@ -7,7 +7,7 @@ pipeline {
         TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')
         TARGET_ENV_URL = credentials('TARGET_ENV_URL')
         SOLUTION_NAME = credentials('SOLUTION_NAME')
-        EXPORT_PATH = 'C:\\solutions\\CD'
+        EXPORT_PATH = 'C:\\solutions\\zipped'
         ZIP_PATH = 'C:\\solutions\\zipped'
         GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/powerops2.git"

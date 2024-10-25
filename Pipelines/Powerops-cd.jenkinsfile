@@ -7,7 +7,7 @@ pipeline {
         TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')
         TARGET_ENV_URL = credentials('TARGET_ENV_URL')
         SOLUTION_NAME = credentials('SOLUTION_NAME')
-        EXPORT_PATH = 'C:\\solutions\\zipped'
+        EXPORT_PATH = 'C:\\solutions\\exported' 
         ZIP_PATH = 'C:\\solutions\\zipped'
         GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/powerops2.git"
@@ -33,9 +33,17 @@ pipeline {
         stage('Zip Solution') {
             steps {
                 script {
+                    def solutionFolderPath = "${EXPORT_PATH}\\${SOLUTION_NAME}"
                     def zipFilePath = "${ZIP_PATH}\\${SOLUTION_NAME}_managed.zip"
+                    
+                    // Verify if the solution folder exists
                     bat """
-                    powershell -Command "Compress-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}\\*' -DestinationPath '${zipFilePath}' -Force"
+                    if not exist "${solutionFolderPath}" (
+                        echo "Solution folder not found: ${solutionFolderPath}"
+                        exit 1
+                    ) else (
+                        powershell -Command "Compress-Archive -Path '${solutionFolderPath}\\*' -DestinationPath '${zipFilePath}' -Force"
+                    )
                     """
                 }
             }
@@ -66,7 +74,7 @@ pipeline {
         always {
             // Clean up the workspace
             bat """
-            powershell -Command "Remove-Item -Path '${EXPORT_PATH}\\unzipped_solution' -Recurse -Force"
+            powershell -Command "Remove-Item -Path '${EXPORT_PATH}\\${SOLUTION_NAME}' -Recurse -Force"
             powershell -Command "Remove-Item -Path '${ZIP_PATH}\\${SOLUTION_NAME}_managed.zip' -Force"
             """
             echo "Cleaned up export and zip directories after deployment."

@@ -35,12 +35,10 @@ pipeline {
                 """
             }
         }
-        stage('Unzip Exported Solution') {
+       
+          stage('Unzip Exported Solution') {
             steps {
-                echo "Attempting to unzip the solution..."
-                bat """
-                powershell -Command "if (Test-Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip') { Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}' -Force } else { Write-Host 'Zip file not found at path: ${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' }"
-                """
+                bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}\\' -Force\""
             }
         }
         stage('Initialize Git, Ensure Remote, and Checkout Branch') {

@@ -14,19 +14,35 @@ pipeline {
         PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
     }
     stages {
-        stage('Approval') {
+        // stage('Approval') {
+        //     steps {
+        //         script {
+        //             input message: 'Approve deployment to target environment?', ok: 'Deploy', submitter: 'admin'
+        //         }
+        //     }
+        // }
+        stage('Prepare Directory') {
             steps {
-                script {
-                    input message: 'Approve deployment to target environment?', ok: 'Deploy', submitter: 'admin'
+                dir("${EXPORT_PATH}") {
+                    bat """
+                    if exist * (
+                        del /q *
+                    )
+                    """
                 }
             }
         }
         stage('Clone Repository') {
             steps {
                 dir("${EXPORT_PATH}") {
-                    bat """
-                    git clone ${GIT_URL} .
-                    """
+                    script {
+                        def gitDirExists = fileExists('.git')
+                        if (gitDirExists) {
+                            bat 'git pull'
+                        } else {
+                            bat "git clone ${GIT_URL} ."
+                        }
+                    }
                 }
             }
         }

@@ -46,7 +46,8 @@ pipeline {
         stage('Unzip Exported Solution') {
             steps {
                 bat """
-                powershell -Command "Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}' -Force"
+                       powershell -Command "if (Test-Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip') { Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}' -Force } else { Write-Host 'Zip file not found at path: ${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' }"
+
                 """
             }
         }

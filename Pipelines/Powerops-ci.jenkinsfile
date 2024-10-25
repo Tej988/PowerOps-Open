@@ -91,12 +91,5 @@ pipeline {
             }
         }
     }
-    post {
-        always {
-            script {
-                bat "powershell -Command \"Remove-Item -Path '${EXPORT_PATH}' -Recurse -Force\""
-                echo "Pipeline completed."
-            }
-        }
-    }
+
 }

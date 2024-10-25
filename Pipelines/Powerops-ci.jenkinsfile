@@ -41,55 +41,62 @@ pipeline {
                 bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}\\' -Force\""
             }
         }
-        stage('Initialize Git, Ensure Remote, and Checkout Branch') {
-            steps {
-                dir("${EXPORT_PATH}\\solutions") {
-                    script {
-                        def isGitRepo = fileExists('.git')
-                        if (!isGitRepo) {
-                            echo "Initializing Git repository and adding remote 'origin'."
-                            bat """
-                            git init
-                            git remote add origin ${GIT_URL}
-                            """
-                        } else {
-                            def remoteExists = bat(script: "git remote", returnStdout: true).trim().contains("origin")
-                            if (!remoteExists) {
-                                echo "Remote 'origin' does not exist. Adding remote."
-                                bat "git remote add origin ${GIT_URL}"
-                            } else {
-                                echo "Remote 'origin' already exists."
-                            }
-                        }
-                        bat "git fetch origin && git checkout -B ${BRANCH_NAME}"
-                    }
-                }
-            }
-        }
-        stage('Push Unzipped Solution to GitHub') {
-            steps {
-                dir("${EXPORT_PATH}\\solutions") {
-                    script {
-                        bat """
-                        git fetch origin
-                        git checkout ${BRANCH_NAME} || git checkout -b ${BRANCH_NAME}
-                        git clean -fd
-                        git pull origin ${BRANCH_NAME} --rebase
-                        """
-                        def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
-                        if (changes) {
-                            bat """
-                            git add .
-                            git commit -m "Exported solution: ${SOLUTION_NAME}"
-                            git push -u origin ${BRANCH_NAME}
-                            """
-                        } else {
-                            echo "No changes to commit."
-                        }
-                    }
-                }
-            }
-        }
+        // stage('Initialize Git, Ensure Remote, and Checkout Branch') {
+        //     steps {
+        //         dir("${EXPORT_PATH}\\solutions") {
+        //             script {
+        //                 def isGitRepo = fileExists('.git')
+        //                 if (!isGitRepo) {
+        //                     echo "Initializing Git repository and adding remote 'origin'."
+        //                     bat """
+        //                     git init
+        //                     git remote add origin ${GIT_URL}
+        //                     """
+        //                 } else {
+        //                     def remoteExists = bat(script: "git remote", returnStdout: true).trim().contains("origin")
+        //                     if (!remoteExists) {
+        //                         echo "Remote 'origin' does not exist. Adding remote."
+        //                         bat "git remote add origin ${GIT_URL}"
+        //                     } else {
+        //                         echo "Remote 'origin' already exists."
+        //                     }
+        //                 }
+        //                 bat "git fetch origin && git checkout -B ${BRANCH_NAME}"
+        //             }
+        //         }
+        //     }
+        // }
+        // stage('Push Unzipped Solution to GitHub') {
+        //     steps {
+        //         dir("${EXPORT_PATH}\\solutions") {
+        //             script {
+        //                 bat """
+        //                 git fetch origin
+        //                 git checkout ${BRANCH_NAME} || git checkout -b ${BRANCH_NAME}
+        //                 git clean -fd
+        //                 git pull origin ${BRANCH_NAME} --rebase
+        //                 """
+        //                 def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
+        //                 if (changes) {
+        //                     bat """
+        //                     git add .
+        //                     git commit -m "Exported solution: ${SOLUTION_NAME}"
+        //                     git push -u origin ${BRANCH_NAME}
+        //                     """
+        //                 } else {
+        //                     echo "No changes to commit."
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     }
-
+    // post {
+    //     always {
+    //         script {
+    //             bat "powershell -Command \"Remove-Item -Path '${EXPORT_PATH}' -Recurse -Force\""
+    //             echo "Pipeline completed."
+    //         }
+    //     }
+    // }
 }

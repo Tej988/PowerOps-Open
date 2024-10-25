@@ -47,23 +47,60 @@ pipeline {
                 bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}' -Force\""
             }
         }
-        stage('Initialize Git and Add Remote') {
+        // stage('Initialize Git and Add Remote') {
+        //     steps {
+        //         dir("${EXPORT_PATH}\\solutions") {
+        //             script {
+        //                 // Check if the .git directory exists
+        //                 def isGitRepo = fileExists('.git')
+                        
+        //                 // Initialize Git and add remote only if it's not a Git repo
+        //                 if (!isGitRepo) {
+        //                     bat """
+        //                     git init
+        //                     git remote add origin %GIT_URL%
+        //                     """
+        //                     echo "Initialized Git and added remote origin."
+        //                 } else {
+        //                     echo "Git repository already initialized."
+        //                 }
+        //                 bat """
+        //                 git fetch origin
+        //                 git checkout -B ${BRANCH_NAME}
+        //                 """
+        //             }
+        //         }
+        //     }
+        // }
+        stage('Initialize Git, Ensure Remote, and Checkout Branch') {
             steps {
-                dir("${EXPORT_PATH}\\solutions") {
+                dir("${EXPORT_PATH}\\solutions") { // Adjust the directory path as needed
                     script {
-                        // Check if the .git directory exists
+                        // Check if the .git directory exists to determine if it's a Git repo
                         def isGitRepo = fileExists('.git')
                         
-                        // Initialize Git and add remote only if it's not a Git repo
                         if (!isGitRepo) {
+                            // Initialize Git and add remote if it's not already a Git repo
+                            echo "Initializing Git repository and adding remote 'origin'."
                             bat """
                             git init
-                            git remote add origin %GIT_URL%
+                            git remote add origin ${GIT_URL}
                             """
-                            echo "Initialized Git and added remote origin."
                         } else {
-                            echo "Git repository already initialized."
+                            // Check if remote 'origin' exists in an already initialized Git repo
+                            def remoteExists = bat(script: "git remote", returnStdout: true).trim().contains("origin")
+                            
+                            if (!remoteExists) {
+                                echo "Remote 'origin' does not exist. Adding remote."
+                                bat """
+                                git remote add origin ${GIT_URL}
+                                """
+                            } else {
+                                echo "Remote 'origin' already exists."
+                            }
                         }
+
+                        // Fetch the latest changes and checkout or create the branch
                         bat """
                         git fetch origin
                         git checkout -B ${BRANCH_NAME}
@@ -72,7 +109,7 @@ pipeline {
                 }
             }
         }
-   
+
         stage('Push Unzipped Solution to GitHub') {
             steps {
                 dir("${EXPORT_PATH}\\solutions") {

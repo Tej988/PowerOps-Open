@@ -74,7 +74,15 @@ pipeline {
         stage('Import Solution') {
             steps {
                 bat """
-                pac solution import --path ${ZIP_PATH} --async --overwrite
+                pac solution import --path ${ZIP_PATH} 
+                """
+            }
+        }
+
+        stage('Publish Solution') {
+            steps {
+                bat """
+                pac solution publish
                 """
             }
         }

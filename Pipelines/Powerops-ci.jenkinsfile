@@ -156,28 +156,12 @@ pipeline {
         //         }
         //     }
         // }
-        stage('Clean Export Directory') {
-            steps {
+        post {
+            always {
                 script {
-                    // Define the paths to clean
-                    def solutionZipPath = "${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip"
-                    def unzippedSolutionPath = "${EXPORT_PATH}\\solutuions"
-
-                    // Remove the exported solution ZIP file if it exists
-                    bat """
-                    if exist "${solutionZipPath}" (
-                        del /F /Q "${solutionZipPath}"
-                    )
-                    """
-
-                    // Remove the unzipped solution folder if it exists, but keep .git
-                    bat """
-                    if exist "${unzippedSolutionPath}" (
-                        rmdir /S /Q "${unzippedSolutionPath}"
-                    )
-                    """
-
-                    echo "Cleaned up solution files, leaving .git and other necessary files intact."
+                    // Clean up: Optional, but you can remove the export directory after use
+                    bat "powershell -Command \"Remove-Item -Path '${EXPORT_PATH}' -Recurse -Force\""
+                    echo "Pipeline completed."
                 }
             }
         }

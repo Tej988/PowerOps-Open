@@ -1,65 +1,55 @@
 pipeline {
     agent any
     environment {
-        // Load credentials from Jenkins Credential Store
         TARGET_APP_ID = credentials('TARGET_APP_ID')
         TARGET_CLIENT_SECRET = credentials('TARGET_CLIENT_SECRET')
         TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')
         TARGET_ENV_URL = credentials('TARGET_ENV_URL')
         SOLUTION_NAME = credentials('SOLUTION_NAME')
-        EXPORT_PATH = 'C:\\solutions\\exported' 
+        EXPORT_PATH = 'C:\\solutions\\CD'
         ZIP_PATH = 'C:\\solutions\\zipped'
         GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/powerops2.git"
         PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
     }
     stages {
-        // stage('Approval') {
-        //     steps {
-        //         script {
-        //             input message: 'Approve deployment to target environment?', ok: 'Deploy', submitter: 'admin'
-        //         }
-        //     }
-        // }
-        stage('Prepare Directory') {
+        stage('Prepare and Clone Repository') {
             steps {
-                dir("${EXPORT_PATH}") {
-                    bat """
-                    if exist * (
-                        del /q *
-                    )
-                    """
-                }
-            }
-        }
-      stage('Clone or Update Repository') {
-        steps {
-            dir("${EXPORT_PATH}") {
                 script {
-                    if (fileExists('.git')) {
-                        // If the directory is already a Git repo, pull the latest changes
-                        bat 'git reset --hard'  // Optional: Resets any local changes
-                        bat 'git pull'
+                    // Check if EXPORT_PATH exists, if not, create it
+                    if (!fileExists("${EXPORT_PATH}")) {
+                        bat "mkdir ${EXPORT_PATH}"
+                        echo "Directory ${EXPORT_PATH} created."
                     } else {
-                        // If the directory is not a Git repo, delete contents and clone
-                        bat 'del /q /s * >nul 2>&1'  // Deletes all contents silently
-                        bat "git clone ${GIT_URL} ."
+                        echo "Directory ${EXPORT_PATH} already exists."
+                    }
+                }
+                dir("${EXPORT_PATH}") {
+                    script {
+                        if (fileExists('.git')) {
+                            // If the directory is already a Git repo, pull the latest changes
+                            bat 'git reset --hard'
+                            bat 'git pull'
+                        } else {
+                            // If the directory is not a Git repo, delete contents and clone
+                            bat 'del /q /s * >nul 2>&1'
+                            bat "git clone ${GIT_URL} ."
+                        }
                     }
                 }
             }
         }
-    }
-
+        
         stage('Zip Solution') {
             steps {
                 script {
                     def solutionFolderPath = "${EXPORT_PATH}\\${SOLUTION_NAME}"
                     def zipFilePath = "${ZIP_PATH}\\${SOLUTION_NAME}_managed.zip"
                     
-                    // Verify if the solution folder exists
+                    // Verify if the solution folder exists and zip it
                     bat """
                     if not exist "${solutionFolderPath}" (
-                        echo "Solution folder not found: ${solutionFolderPath}"
+                        echo Solution folder not found: ${solutionFolderPath}
                         exit 1
                     ) else (
                         powershell -Command "Compress-Archive -Path '${solutionFolderPath}\\*' -DestinationPath '${zipFilePath}' -Force"
@@ -68,31 +58,9 @@ pipeline {
                 }
             }
         }
-        stage('Authenticate Target Environment') {
-            steps {
-                bat """
-                pac auth create --applicationId %TARGET_APP_ID% --clientSecret %TARGET_CLIENT_SECRET% --tenant %TARGET_TENANT_ID%
-                """
-            }
-        }
-        stage('Select Target Environment') {
-            steps {
-                bat """
-                pac org select --environment https://%TARGET_ENV_URL%
-                """
-            }
-        }
-        stage('Import Solution') {
-            steps {
-                bat """
-                pac solution import --path ${ZIP_PATH}\\${SOLUTION_NAME}_managed.zip --async --overwrite
-                """
-            }
-        }
     }
     post {
         always {
-            // Clean up the workspace
             bat """
             powershell -Command "Remove-Item -Path '${EXPORT_PATH}\\${SOLUTION_NAME}' -Recurse -Force"
             powershell -Command "Remove-Item -Path '${ZIP_PATH}\\${SOLUTION_NAME}_managed.zip' -Force"

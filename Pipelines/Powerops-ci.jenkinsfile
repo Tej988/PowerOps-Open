@@ -142,13 +142,13 @@ pipeline {
         //     }
         // }
     }
-    post {
-        always {
-            script {
-                // Clean up: Optional, but you can remove the export directory after use
-                bat "powershell -Command \"Remove-Item -Path '${EXPORT_PATH}' -Recurse -Force\""
-                echo "Pipeline completed."
-            }
-        }
-    }
+    // post {
+    //     always {
+    //         script {
+    //             // Clean up: Optional, but you can remove the export directory after use
+    //             bat "powershell -Command \"Remove-Item -Path '${EXPORT_PATH}' -Recurse -Force\""
+    //             echo "Pipeline completed."
+    //         }
+    //     }
+    // }
 }

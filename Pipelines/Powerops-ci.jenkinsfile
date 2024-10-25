@@ -44,7 +44,7 @@ pipeline {
         }
         stage('Unzip Exported Solution') {
             steps {
-                bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}' -Force\""
+                bat "powershell -Command \"Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}\\' -Force\""
             }
         }
         // stage('Initialize Git and Add Remote') {

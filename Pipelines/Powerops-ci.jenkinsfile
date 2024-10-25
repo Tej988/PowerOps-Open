@@ -14,14 +14,6 @@ pipeline {
         PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
     }
     stages {
-        // Uncomment if you want an approval stage
-        // stage('Approval') {
-        //     steps {
-        //         script {
-        //             input message: 'Approve the exported solution?', ok: 'Approve', submitter: 'admin'
-        //         }
-        //     }
-        // }
         stage('Authenticate Source Environment') {
             steps {
                 bat """
@@ -45,9 +37,9 @@ pipeline {
         }
         stage('Unzip Exported Solution') {
             steps {
+                echo "Attempting to unzip the solution..."
                 bat """
-                       powershell -Command "if (Test-Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip') { Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}' -Force } else { Write-Host 'Zip file not found at path: ${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' }"
-
+                powershell -Command "if (Test-Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip') { Expand-Archive -Path '${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' -DestinationPath '${EXPORT_PATH}\\solutions\\${SOLUTION_NAME}' -Force } else { Write-Host 'Zip file not found at path: ${EXPORT_PATH}\\${SOLUTION_NAME}_managed.zip' }"
                 """
             }
         }
@@ -55,35 +47,23 @@ pipeline {
             steps {
                 dir("${EXPORT_PATH}\\solutions") {
                     script {
-                        // Check if the .git directory exists to determine if it's a Git repo
                         def isGitRepo = fileExists('.git')
-                        
                         if (!isGitRepo) {
-                            // Initialize Git and add remote if it's not already a Git repo
                             echo "Initializing Git repository and adding remote 'origin'."
                             bat """
                             git init
                             git remote add origin ${GIT_URL}
                             """
                         } else {
-                            // Check if remote 'origin' exists in an already initialized Git repo
                             def remoteExists = bat(script: "git remote", returnStdout: true).trim().contains("origin")
-                            
                             if (!remoteExists) {
                                 echo "Remote 'origin' does not exist. Adding remote."
-                                bat """
-                                git remote add origin ${GIT_URL}
-                                """
+                                bat "git remote add origin ${GIT_URL}"
                             } else {
                                 echo "Remote 'origin' already exists."
                             }
                         }
-
-                        // Fetch the latest changes and checkout or create the branch
-                        bat """
-                        git fetch origin
-                        git checkout -B ${BRANCH_NAME}
-                        """
+                        bat "git fetch origin && git checkout -B ${BRANCH_NAME}"
                     }
                 }
             }
@@ -92,18 +72,14 @@ pipeline {
             steps {
                 dir("${EXPORT_PATH}\\solutions") {
                     script {
-                        // Clean up untracked files to prevent merge conflicts
                         bat """
                         git fetch origin
                         git checkout ${BRANCH_NAME} || git checkout -b ${BRANCH_NAME}
                         git clean -fd
                         git pull origin ${BRANCH_NAME} --rebase
                         """
-
-                        // Check for local changes after pull
                         def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
                         if (changes) {
-                            // If there are changes, add, commit, and push
                             bat """
                             git add .
                             git commit -m "Exported solution: ${SOLUTION_NAME}"
@@ -116,40 +92,13 @@ pipeline {
                 }
             }
         }
-
-        // stage('Push Unzipped Solution to GitHub') {
-        //     steps {
-        //         dir("${EXPORT_PATH}\\solutions") {
-        //             script {
-        //                 // Fetch and rebase the latest changes from the remote branch
-        //                 bat """
-        //                 git pull origin ${BRANCH_NAME} --rebase
-        //                 """
-                        
-        //                 // Check for local changes
-        //                 def changes = bat(script: "git status --porcelain", returnStdout: true).trim()
-        //                 if (changes) {
-        //                     // If there are changes, add, commit, and push
-        //                     bat """
-        //                     git add .
-        //                     git commit -m "Exported solution: ${SOLUTION_NAME}"
-        //                     git push -u origin ${BRANCH_NAME}
-        //                     """
-        //                 } else {
-        //                     echo "No changes to commit."
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
     }
-    // post {
-    //     always {
-    //         script {
-    //             // Clean up: Optional, but you can remove the export directory after use
-    //             bat "powershell -Command \"Remove-Item -Path '${EXPORT_PATH}' -Recurse -Force\""
-    //             echo "Pipeline completed."
-    //         }
-    //     }
-    // }
+    post {
+        always {
+            script {
+                bat "powershell -Command \"Remove-Item -Path '${EXPORT_PATH}' -Recurse -Force\""
+                echo "Pipeline completed."
+            }
+        }
+    }
 }

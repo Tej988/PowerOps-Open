@@ -7,7 +7,7 @@ pipeline {
         TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')
         TARGET_ENV_URL = credentials('TARGET_ENV_URL')
         SOLUTION_NAME = credentials('SOLUTION_NAME')
-        EXPORT_PATH = 'C:\\solutions\\exported' 
+        EXPORT_PATH = 'C:\\solutions\\CD' 
         ZIP_PATH = 'C:\\solutions\\zipped'
         GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/powerops2.git"
@@ -32,20 +32,24 @@ pipeline {
                 }
             }
         }
-        stage('Clone Repository') {
-            steps {
-                dir("${EXPORT_PATH}") {
-                    script {
-                        def gitDirExists = fileExists('.git')
-                        if (gitDirExists) {
-                            bat 'git pull'
-                        } else {
-                            bat "git clone ${GIT_URL} ."
-                        }
+      stage('Clone or Update Repository') {
+        steps {
+            dir("${EXPORT_PATH}") {
+                script {
+                    if (fileExists('.git')) {
+                        // If the directory is already a Git repo, pull the latest changes
+                        bat 'git reset --hard'  // Optional: Resets any local changes
+                        bat 'git pull'
+                    } else {
+                        // If the directory is not a Git repo, delete contents and clone
+                        bat 'del /q /s * >nul 2>&1'  // Deletes all contents silently
+                        bat "git clone ${GIT_URL} ."
                     }
                 }
             }
         }
+    }
+
         stage('Zip Solution') {
             steps {
                 script {

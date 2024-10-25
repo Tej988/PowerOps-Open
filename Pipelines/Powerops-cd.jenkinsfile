@@ -12,6 +12,7 @@ pipeline {
         TARGET_CLIENT_SECRET = credentials('TARGET_CLIENT_SECRET') // Load from Jenkins credentials
         TARGET_TENANT_ID = credentials('TARGET_TENANT_ID')   // Load from Jenkins credentials
         TARGET_ENV_URL = credentials('TARGET_ENV_URL')       // Load from Jenkins credentials
+        PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
         
     }
     stages {

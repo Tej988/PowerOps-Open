@@ -8,7 +8,7 @@ pipeline {
         SOLUTION_NAME = credentials('SOLUTION_NAME')
         EXPORT_PATH = 'C:\\solutions\\exported' 
         SOURCE_ENV_URL = credentials('SOURCE_ENV_URL')
-        BRANCH_NAME = 'main'
+        BRANCH_NAME = 'feature2'
         GIT_CREDENTIALS = credentials('GITHUB')
         GIT_URL = "https://${GIT_CREDENTIALS}@github.com/Tej988/PowerOps-Open.git"
         PATH = "C:\\Users\\adminuser\\AppData\\Local\\Microsoft\\PowerAppsCLI\\;C:\\Program Files\\Git\\bin\\;$PATH"
